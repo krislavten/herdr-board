@@ -1288,7 +1288,7 @@ fn space_list_rejects_a_socket_with_the_wrong_protocol() {
     assert!(
         msg.contains(&format!(
             "Herdr {} with protocol {} is required",
-            board_herdr::SUPPORTED_HERDR_VERSION,
+            board_herdr::SUPPORTED_HERDR_VERSIONS.join(" or "),
             board_herdr::SUPPORTED_HERDR_PROTOCOL
         )),
         "message: {msg}"
@@ -1319,7 +1319,7 @@ fn run_focus_rejects_a_socket_with_the_wrong_protocol() {
     assert!(
         msg.contains(&format!(
             "Herdr {} with protocol {} is required",
-            board_herdr::SUPPORTED_HERDR_VERSION,
+            board_herdr::SUPPORTED_HERDR_VERSIONS.join(" or "),
             board_herdr::SUPPORTED_HERDR_PROTOCOL
         )),
         "message: {msg}"

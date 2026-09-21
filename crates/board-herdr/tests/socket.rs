@@ -18,7 +18,7 @@ use board_herdr::{
     AgentPromptParams, AgentStartParams, AgentStatus, AgentWaitParams, HerdrClient, HerdrError,
     HerdrEvent, HerdrEvents, PaneRenameParams, PaneSplitParams, ReadSource, SocketDeadlines,
     SplitDirection, Subscription, TabRenameParams, WorkspaceCreateParams, SUPPORTED_HERDR_PROTOCOL,
-    SUPPORTED_HERDR_VERSION,
+    SUPPORTED_HERDR_VERSION, SUPPORTED_HERDR_VERSIONS,
 };
 use serde_json::Value;
 
@@ -139,6 +139,27 @@ fn protocol_gate_accepts_exact_supported_contract() {
 }
 
 #[test]
+fn protocol_gate_accepts_every_verified_release() {
+    assert_eq!(SUPPORTED_HERDR_VERSIONS, ["0.9.0", "0.9.1"]);
+    for version in SUPPORTED_HERDR_VERSIONS {
+        let path = serve_calls(move |req| {
+            reply_for(
+                req,
+                &format!(
+                    r#"{{"type":"pong","version":"{version}","protocol":22,"capabilities":{{}}}}"#
+                ),
+            )
+        });
+
+        let mut c = HerdrClient::connect(&path).unwrap();
+        let pong = c
+            .require_supported_protocol()
+            .expect("a verified Herdr release with protocol 22 must be accepted");
+        assert_eq!(pong.version, *version);
+    }
+}
+
+#[test]
 #[allow(deprecated)]
 fn deprecated_protocol_adapter_accepts_only_the_supported_protocol() {
     let path = serve_calls(|req| {
@@ -181,7 +202,14 @@ fn deprecated_protocol_adapter_rejects_a_different_requested_protocol() {
 
 #[test]
 fn protocol_gate_rejects_mismatches_with_exact_diagnostics() {
-    for (version, protocol) in [("0.7.5", 19), ("0.8.0", 17), ("0.7.5", 17), ("0.9.0", 20)] {
+    for (version, protocol) in [
+        ("0.7.5", 19),
+        ("0.8.0", 17),
+        ("0.7.5", 17),
+        ("0.9.0", 20),
+        ("0.9.1", 20),
+        ("0.9.2", 22),
+    ] {
         let path = serve_calls(move |req| {
             reply_for(
                 req,
@@ -196,7 +224,8 @@ fn protocol_gate_rejects_mismatches_with_exact_diagnostics() {
             .require_supported_protocol()
             .expect_err("a mismatched Herdr contract must be rejected");
         let expected_message = format!(
-            "Herdr {SUPPORTED_HERDR_VERSION} with protocol {SUPPORTED_HERDR_PROTOCOL} is required (found Herdr {version} with protocol {protocol})"
+            "Herdr {} with protocol {SUPPORTED_HERDR_PROTOCOL} is required (found Herdr {version} with protocol {protocol})",
+            SUPPORTED_HERDR_VERSIONS.join(" or ")
         );
         assert!(matches!(
             &err,

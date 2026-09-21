@@ -137,7 +137,7 @@ prefix is `ctrl+a`, it is `Ctrl+A Shift+K`). Do not reuse `prefix+k` — it is H
 <details>
 <summary><strong>Requirements and details</strong></summary>
 
-- Requires exactly **Herdr 0.9.0 (socket protocol 22)**, Git, and a Rust toolchain with `cargo`;
+- Requires **Herdr 0.9.0 or 0.9.1 (socket protocol 22)**, Git, and a Rust toolchain with `cargo`;
   Linux and macOS are supported. The daemon rejects any other Herdr version or protocol before
   workspace discovery and pane launch.
 - Board protocol **v1**, SQLite schema **v15** (`schema.sql`; upgrades via `board-core::db`).

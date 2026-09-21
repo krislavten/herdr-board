@@ -228,20 +228,21 @@ impl HerdrClient {
         self.call_into("ping", json!({}))
     }
 
-    /// Require the exact Herdr release and socket protocol supported by this
-    /// client. The supported contract is owned by [`crate::SUPPORTED_HERDR_VERSION`]
-    /// and [`crate::SUPPORTED_HERDR_PROTOCOL`], so callers cannot accidentally
-    /// ask this gate to validate a different contract.
+    /// Require a verified Herdr release and the socket protocol supported by
+    /// this client. The supported contract is owned by
+    /// [`crate::SUPPORTED_HERDR_VERSIONS`] and [`crate::SUPPORTED_HERDR_PROTOCOL`],
+    /// so callers cannot accidentally ask this gate to validate a different
+    /// contract.
     pub fn require_supported_protocol(&mut self) -> Result<Pong> {
         let pong = self.ping()?;
-        if pong.version != crate::SUPPORTED_HERDR_VERSION
+        if !crate::SUPPORTED_HERDR_VERSIONS.contains(&pong.version.as_str())
             || pong.protocol != crate::SUPPORTED_HERDR_PROTOCOL
         {
             return Err(HerdrError::Protocol {
                 code: "incompatible_protocol".to_string(),
                 message: format!(
                     "Herdr {} with protocol {} is required (found Herdr {} with protocol {})",
-                    crate::SUPPORTED_HERDR_VERSION,
+                    crate::SUPPORTED_HERDR_VERSIONS.join(" or "),
                     crate::SUPPORTED_HERDR_PROTOCOL,
                     pong.version,
                     pong.protocol

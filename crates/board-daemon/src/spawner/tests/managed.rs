@@ -40,7 +40,7 @@ fn herdr_protocol_gate_rejects_mismatches_before_any_spawn_or_placement_call() {
         assert!(
             text.contains(&format!(
                 "Herdr {} with protocol {} is required",
-                board_herdr::SUPPORTED_HERDR_VERSION,
+                board_herdr::SUPPORTED_HERDR_VERSIONS.join(" or "),
                 board_herdr::SUPPORTED_HERDR_PROTOCOL
             )),
             "mismatch must explain the required Herdr version/protocol: {text}"

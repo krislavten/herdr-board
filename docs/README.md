@@ -9,7 +9,7 @@ The reference detail behind the [root README](../README.md). Start here to find 
 | Board socket | v1; `board-core::protocol` (additive `active_runs`, error `kind`/`details`) | [protocol.md](protocol.md) |
 | SQLite | schema v15; `schema.sql` + `board-core::db` migrations | [design.md](design.md) |
 | CLI | canonical nested `board board/card/comment/run/column` taxonomy; `board-cli` wiring | [README CLI reference](../README.md#cli-reference), [skill](../skill/SKILL.md) |
-| Herdr client | 0.9.0 / socket protocol 22; `board-herdr` typed calls | [herdr.md](herdr.md) |
+| Herdr client | 0.9.0 / socket protocol 22 (0.9.1 also accepted); `board-herdr` typed calls | [herdr.md](herdr.md) |
 | Herdr integrations | Pi v8; Claude v7; Antigravity CLI v1 for the agy conversation capture (installed and updated by the user) | [herdr.md](herdr.md), [install.md](install.md) |
 | Runtime launch | daemon-owned `Spawner`, placement, process/pane handles | [implementation.md](implementation.md) |
 | Config | typed `RootConfig`, one parse, environment overrides after parse | [configuration.md](configuration.md), [design.md](design.md) |

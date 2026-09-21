@@ -24,8 +24,12 @@ mod params;
 mod transport;
 mod types;
 
-/// The only Herdr release supported by this client.
+/// The Herdr release this client's schema fixture was captured from.
 pub const SUPPORTED_HERDR_VERSION: &str = "0.9.0";
+/// Every Herdr release accepted by the gate. Each entry was verified against
+/// `herdr api schema --json`: 0.9.1 serves protocol 22 and differs from 0.9.0
+/// only by one added method (`pane.link.resolve`) and its result type.
+pub const SUPPORTED_HERDR_VERSIONS: &[&str] = &[SUPPORTED_HERDR_VERSION, "0.9.1"];
 /// The only Herdr socket protocol supported by this client.
 pub const SUPPORTED_HERDR_PROTOCOL: u32 = 22;
 
