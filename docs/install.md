@@ -10,7 +10,7 @@ SQLite schema v15. See the README for the one-line install command itself.
 
 | Component | Required support level | How to verify |
 |---|---|---|
-| Herdr binary | 0.9.0 | `herdr --version` → `herdr 0.9.0` |
+| Herdr binary | 0.9.0 or 0.9.1 | `herdr --version` → `herdr 0.9.0` or `herdr 0.9.1` |
  | Herdr socket | protocol 22 | `herdr api schema --json` → top-level `protocol: 22`; a running session's `herdr api snapshot` also reports `version` and `protocol` |
 | Board socket | v1 | `docs/protocol.md` and `board-core::protocol` |
 | SQLite | schema v15 | `schema.sql` and `board-core::db` migrations |
@@ -27,7 +27,7 @@ user-managed prerequisites, not plugin files installed by herdr-board.
 These are read-only checks against the binary and session you are about to use:
 
 ```bash
-test "$(herdr --version)" = "herdr 0.9.0"
+case "$(herdr --version)" in "herdr 0.9.0"|"herdr 0.9.1") ;; *) false ;; esac
 herdr api schema --json | python3 -c \
   'import json, sys; s=json.load(sys.stdin); assert s["protocol"] == 22, s'
 herdr api snapshot
