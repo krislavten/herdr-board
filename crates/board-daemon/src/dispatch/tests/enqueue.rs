@@ -1030,3 +1030,42 @@ fn antigravity_retry_enqueue_keeps_the_real_recorded_conversation_id() {
         "agy has no fork flag; a retry must never simulate one"
     );
 }
+
+/// `[claude] name_sessions` names the session after the card, because the
+/// card id is only known at enqueue time. The name sits right after the
+/// executable so the session flags stay last, and no other harness gets it.
+#[test]
+fn claude_sessions_are_named_after_the_card_only_when_enabled() {
+    let persisted_argv = |name_sessions: bool, harness: &str| -> (i64, Vec<String>) {
+        let mut d = test_daemon(Arc::new(MissingPiSpawner));
+        Arc::get_mut(&mut d).unwrap().config.claude.name_sessions = name_sessions;
+        let db = d.store.lock();
+        let card = db
+            .create_card(&CardCreateParams {
+                title: "named".into(),
+                harness: Some(harness.into()),
+                ..Default::default()
+            })
+            .unwrap();
+        let prepared =
+            crate::dispatch::enqueue::prepare_enqueue_values(&d, &db, &card, card.column_id, false)
+                .unwrap();
+        let argv: Vec<String> = serde_json::from_str(&prepared.argv_json).unwrap();
+        // The launch spec is what the spawner runs, so it must carry the same argv.
+        let spec: serde_json::Value = serde_json::from_str(&prepared.launch_spec_json).unwrap();
+        let spec_argv: Vec<String> =
+            serde_json::from_value(spec["execution"]["argv"].clone()).unwrap();
+        assert_eq!(argv, spec_argv);
+        (card.id, argv)
+    };
+
+    let (id, named) = persisted_argv(true, "claude");
+    assert_eq!(named[..3], ["claude", "-n", &format!("card-{id}")]);
+    assert_eq!(named[named.len() - 2], "--session-id");
+
+    let (_, unnamed) = persisted_argv(false, "claude");
+    assert!(!unnamed.iter().any(|a| a == "-n"));
+
+    let (_, pi) = persisted_argv(true, "pi");
+    assert!(!pi.iter().any(|a| a == "-n"));
+}

@@ -87,5 +87,11 @@ pub(crate) fn map_harness_err(e: HarnessError) -> Error {
              retry the card instead to start a new run"
                 .into(),
         ),
+        // The [claude] config errors already name the offending model, provider,
+        // file or key, so they pass through as the caller-facing message.
+        e @ (HarnessError::ClaudeProviderRequired(_)
+        | HarnessError::UnknownClaudeProvider(_)
+        | HarnessError::ClaudeProviderSettingsMissing(_)
+        | HarnessError::ClaudeReservedEnv(_)) => Error::BadRequest(e.to_string()),
     }
 }

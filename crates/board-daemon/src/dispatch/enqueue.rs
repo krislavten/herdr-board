@@ -127,7 +127,7 @@ pub(crate) fn prepare_enqueue_values(
     let plan = plan_session(existing_session, settings.fresh_session, is_retry);
     let target_session = matches!(plan, SessionPlan::Mint | SessionPlan::Fork(_))
         .then(|| Uuid::new_v4().to_string());
-    let invocation = build_invocation(
+    let mut invocation = build_invocation(
         &settings.harness,
         &d.config,
         &settings,
@@ -136,6 +136,13 @@ pub(crate) fn prepare_enqueue_values(
         &prompt,
     )
     .map_err(map_harness_err)?;
+    // The card id is only known here. The name goes right after the
+    // executable so the session flags stay last in the argv.
+    if settings.harness == "claude" && d.config.claude.name_sessions {
+        invocation
+            .argv
+            .splice(1..1, ["-n".to_string(), format!("card-{}", card.id)]);
+    }
     let session_id = invocation
         .resulting_session_id
         .clone()

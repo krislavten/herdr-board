@@ -1,7 +1,7 @@
 //! `~/.config/herdr-board/config.toml` loader (override via `HERDR_BOARD_CONFIG`).
 //! A missing file yields defaults.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -111,6 +111,36 @@ pub struct Config {
     /// this directly to exercise catalog-up behavior hermetically.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agy_models: Option<Vec<crate::capability::ModelInfo>>,
+    /// Launch options for the built-in `claude` harness (`[claude]`): settings
+    /// providers, extra environment, and session naming. All default to off,
+    /// which keeps the launch identical to a config without the table.
+    #[serde(default, skip_serializing_if = "ClaudeConfig::is_default")]
+    pub claude: ClaudeConfig,
+}
+
+/// `[claude]`: how the built-in `claude` harness is launched.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClaudeConfig {
+    /// Provider name → absolute path of a Claude Code settings JSON passed as
+    /// `--settings`. An empty value means the account claude is logged in
+    /// with (no `--settings`). Once any provider is configured, a claude run
+    /// must name one as `--model <provider>/<model>`; see
+    /// [`crate::harness::HarnessError::ClaudeProviderRequired`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub providers: BTreeMap<String, String>,
+    /// Extra environment for every claude run. Keys starting with `BOARD_`
+    /// belong to the daemon and are rejected.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+    /// Pass `-n card-<id>` so the session is addressable by the card's name.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub name_sessions: bool,
+}
+
+impl ClaudeConfig {
+    fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
 }
 
 /// A config-defined harness: an argv template plus an optional capability
@@ -155,6 +185,7 @@ impl Default for Config {
             opencode_bin: None,
             agy_bin: None,
             agy_models: None,
+            claude: ClaudeConfig::default(),
         }
     }
 }

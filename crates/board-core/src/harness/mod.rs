@@ -12,7 +12,7 @@ pub mod codex;
 pub mod opencode;
 
 use crate::capability::ResumeSupport;
-use crate::config::Config;
+use crate::config::{ClaudeConfig, Config};
 use crate::launch::ExecutionSpec;
 use crate::prompt::EffectiveSettings;
 
@@ -107,6 +107,23 @@ pub enum HarnessError {
          so it cannot be re-threaded onto a resume without re-sending that task"
     )]
     ResumeLegacyArgv(String),
+    /// `[claude.providers]` is configured, so every claude run must say which
+    /// provider pays for it. There is deliberately no default: an unprefixed
+    /// model would silently fall through to the logged-in account.
+    #[error(
+        "claude providers are configured, so the model must be '<provider>/<model>' \
+         (configured providers: {0})"
+    )]
+    ClaudeProviderRequired(String),
+    #[error("unknown claude provider '{0}': it is not listed under [claude.providers]")]
+    UnknownClaudeProvider(String),
+    /// The provider's settings file must be an absolute path to an existing
+    /// regular file, checked before launch so a typo cannot start claude on
+    /// the logged-in account instead.
+    #[error("claude provider settings file '{0}' is not an absolute path to an existing file")]
+    ClaudeProviderSettingsMissing(String),
+    #[error("[claude.env] key '{0}' is reserved: BOARD_* variables belong to the daemon")]
+    ClaudeReservedEnv(String),
 }
 
 // ---------------------------------------------------------------------------
@@ -438,7 +455,7 @@ pub fn build_invocation(
         return managed_pi_invocation(settings, session, minted_uuid, prompt);
     }
     if harness_name == "claude" {
-        return managed_claude_invocation(settings, session, minted_uuid, prompt);
+        return managed_claude_invocation(&config.claude, settings, session, minted_uuid, prompt);
     }
     if harness_name == "codex" {
         return codex::managed_codex_invocation(settings, session, minted_uuid, prompt);
@@ -512,17 +529,66 @@ fn managed_pi_invocation(
     })
 }
 
+/// Resolve a claude card's model against `[claude.providers]`, returning the
+/// settings file to pass as `--settings` (if any) and the model to pass as
+/// `--model`.
+///
+/// With no providers configured the model passes through untouched. Once any
+/// provider is configured the model must be `<provider>/<model>` (split at the
+/// first `/`) and every mismatch is an error rather than a fallback, because
+/// the fallback would be the logged-in account.
+fn resolve_claude_provider(
+    claude: &ClaudeConfig,
+    model: Option<&str>,
+) -> Result<(Option<String>, Option<String>), HarnessError> {
+    if claude.providers.is_empty() {
+        return Ok((None, model.map(str::to_string)));
+    }
+    let required = || {
+        let names: Vec<&str> = claude.providers.keys().map(String::as_str).collect();
+        HarnessError::ClaudeProviderRequired(names.join(", "))
+    };
+    let (provider, tier) = model.and_then(|m| m.split_once('/')).ok_or_else(required)?;
+    if provider.is_empty() || tier.is_empty() {
+        return Err(required());
+    }
+    let settings_path = claude
+        .providers
+        .get(provider)
+        .ok_or_else(|| HarnessError::UnknownClaudeProvider(provider.to_string()))?;
+    if settings_path.is_empty() {
+        return Ok((None, Some(tier.to_string())));
+    }
+    let path = std::path::Path::new(settings_path);
+    if !path.is_absolute() || !path.is_file() {
+        return Err(HarnessError::ClaudeProviderSettingsMissing(
+            settings_path.clone(),
+        ));
+    }
+    Ok((Some(settings_path.clone()), Some(tier.to_string())))
+}
+
 /// Build a managed Herdr Claude launch while preserving the established
-/// model/effort/permission/session flag ordering exactly.
+/// model/effort/permission/session flag ordering exactly. A configured
+/// provider adds `--settings <file>` directly after the executable.
 fn managed_claude_invocation(
+    claude: &ClaudeConfig,
     settings: &EffectiveSettings,
     session: &SessionPlan,
     minted_uuid: Option<&str>,
     prompt: &str,
 ) -> Result<HarnessInvocation, HarnessError> {
+    if let Some(key) = claude.env.keys().find(|k| k.starts_with("BOARD_")) {
+        return Err(HarnessError::ClaudeReservedEnv(key.clone()));
+    }
+    let (settings_file, model) = resolve_claude_provider(claude, settings.model.as_deref())?;
+
     let mut argv = vec!["claude".to_string()];
-    if let Some(model) = &settings.model {
-        argv.extend(["--model".to_string(), model.clone()]);
+    if let Some(file) = settings_file {
+        argv.extend(["--settings".to_string(), file]);
+    }
+    if let Some(model) = model {
+        argv.extend(["--model".to_string(), model]);
     }
     if let Some(effort) = settings.effort {
         argv.extend(["--effort".to_string(), effort.as_str().to_string()]);
@@ -540,7 +606,11 @@ fn managed_claude_invocation(
         initial_prompt: Some(prompt.to_string()),
         system_prompt: Some(protocol_system_prompt(settings.system_prompt.as_deref())),
         argv,
-        env: Vec::new(),
+        env: claude
+            .env
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
         resulting_session_id,
     })
 }

@@ -143,6 +143,38 @@ invalid typed value (including an unknown `spawner`) is an error: the daemon doe
 back to defaults. Environment overrides are applied after parsing and take precedence; malformed
 override values also prevent daemon startup.
 
+### The built-in `claude` harness: providers, env, session names
+
+The optional `[claude]` table changes how the built-in `claude` harness is launched. Without it the
+launch is exactly `claude [--model M] [--effort E] [--permission-mode P] --allowedTools "Bash(board:*)"`
+plus the session flags.
+
+```toml
+[claude]
+name_sessions = true          # claude -n card-<id>
+
+[claude.providers]            # provider name -> Claude Code settings JSON, passed as --settings
+DeepSeek = "/Users/me/.config/claude-providers/deepseek.json"
+"Company Gateway" = "/Users/me/.config/claude-providers/gateway.json"
+official = ""                 # empty = the account claude is logged in with (no --settings)
+
+[claude.env]                  # extra environment for every claude run
+CLAUDE_ROLE = "card"
+```
+
+- **Providers are fail-closed.** Once `[claude.providers]` has any entry, a claude card or column must
+  set its model as `<provider>/<model>` (split at the first `/`), for example `DeepSeek/opus`. The run
+  is refused with a `bad request` when the model has no prefix, names a provider that is not listed,
+  or points at a settings file that is not an absolute path to an existing file. Nothing falls back
+  to the logged-in account; use an entry with an empty value to choose that account on purpose.
+- A provider adds `--settings <file>` directly after the executable and passes the part after the
+  slash as `--model`. Models stay free-form, so the card form's model picker still lists the plain
+  aliases; type the prefixed value instead.
+- `[claude.env]` is added to the run's environment. Keys starting with `BOARD_` belong to the daemon
+  and are rejected.
+- `name_sessions` names the Claude session `card-<id>`, which is also the card's Herdr tab name. The
+  name is part of the persisted argv, so later stages that resume the conversation keep it.
+
 ### Environment variables
 
 | Variable | Purpose |
