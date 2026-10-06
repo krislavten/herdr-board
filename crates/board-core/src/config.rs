@@ -135,6 +135,11 @@ pub struct ClaudeConfig {
     /// Pass `-n card-<id>` so the session is addressable by the card's name.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub name_sessions: bool,
+    /// Extra arguments for every claude run, placed after the board's own
+    /// flags and before the session flags (e.g. `["--channels", "plugin:x@y"]`).
+    /// A rescue keeps them: they are part of the persisted argv.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
 }
 
 impl ClaudeConfig {

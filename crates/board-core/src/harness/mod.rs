@@ -597,6 +597,7 @@ fn managed_claude_invocation(
         argv.extend(["--permission-mode".to_string(), permission.clone()]);
     }
     argv.extend(["--allowedTools".to_string(), "Bash(board:*)".to_string()]);
+    argv.extend(claude.args.iter().cloned());
 
     let (session_flags, resulting_session_id) = session_argv("claude", session, minted_uuid)?;
     argv.extend(session_flags);

@@ -34,6 +34,7 @@ fn config_with(providers: &[(&str, &str)], env: &[(&str, &str)]) -> Config {
             providers: pairs(providers),
             env: pairs(env),
             name_sessions: false,
+            args: Vec::new(),
         },
         ..Config::default()
     }
@@ -191,11 +192,25 @@ fn the_claude_table_does_not_leak_into_other_harnesses() {
 }
 
 #[test]
+fn claude_args_go_after_board_flags_and_before_session_flags() {
+    let mut config = config_with(&[], &[]);
+    config.claude.args = vec!["--channels".into(), "plugin:kt@kris-team".into()];
+    let invocation = build(&config, Some("opus")).unwrap();
+    let argv = &invocation.argv;
+    let at = argv.iter().position(|a| a == "--channels").expect("args present");
+    assert_eq!(argv[at + 1], "plugin:kt@kris-team");
+    assert_eq!(argv[at - 1], "Bash(board:*)");
+    assert_eq!(argv[at + 2..], ["--session-id", UUID]);
+    // Without args the launch is byte-identical (see without_providers_the_launch_is_unchanged).
+}
+
+#[test]
 fn the_claude_table_parses_from_toml_and_defaults_when_absent() {
     let parsed = RootConfig::from_toml(
         r#"
 [claude]
 name_sessions = true
+args = ["--channels", "plugin:kt@kris-team"]
 
 [claude.providers]
 "公司Model" = "/abs/_Model.json"
@@ -209,6 +224,7 @@ CLAUDE_ROLE = "card"
     .board
     .claude;
     assert!(parsed.name_sessions);
+    assert_eq!(parsed.args, ["--channels", "plugin:kt@kris-team"]);
     assert_eq!(parsed.providers["公司Model"], "/abs/_Model.json");
     assert_eq!(parsed.providers["official"], "");
     assert_eq!(parsed.env["CLAUDE_ROLE"], "card");
