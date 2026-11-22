@@ -197,7 +197,10 @@ fn claude_args_go_after_board_flags_and_before_session_flags() {
     config.claude.args = vec!["--channels".into(), "plugin:kt@kris-team".into()];
     let invocation = build(&config, Some("opus")).unwrap();
     let argv = &invocation.argv;
-    let at = argv.iter().position(|a| a == "--channels").expect("args present");
+    let at = argv
+        .iter()
+        .position(|a| a == "--channels")
+        .expect("args present");
     assert_eq!(argv[at + 1], "plugin:kt@kris-team");
     assert_eq!(argv[at - 1], "Bash(board:*)");
     assert_eq!(argv[at + 2..], ["--session-id", UUID]);

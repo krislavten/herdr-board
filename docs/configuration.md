@@ -49,6 +49,16 @@ levels. If the cache is missing or malformed, model entry remains free-form and 
 ladder remains available. Cache-only levels the board protocol does not support, such as `ultra`,
 are omitted.
 
+`[codex.env]` adds environment variables to newly dispatched Codex runs. Like `[claude.env]`,
+it reserves `BOARD_*` keys for the daemon and passes values through literally. A tool can interpret
+its own templates. For example, `kt` expands `${BOARD_CARD_ID}` when it resolves the caller:
+
+```toml
+[codex.env]
+KT_AGENT = "card-${BOARD_CARD_ID}"
+KT_TEAM = "pilot"
+```
+
 The permission selector mirrors Codex's three presets and stores stable ids:
 
 - **Ask for approval** (`ask-for-approval`) — `--sandbox workspace-write --ask-for-approval on-request`.

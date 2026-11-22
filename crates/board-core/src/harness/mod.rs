@@ -124,6 +124,8 @@ pub enum HarnessError {
     ClaudeProviderSettingsMissing(String),
     #[error("[claude.env] key '{0}' is reserved: BOARD_* variables belong to the daemon")]
     ClaudeReservedEnv(String),
+    #[error("[codex.env] key '{0}' is reserved: BOARD_* variables belong to the daemon")]
+    CodexReservedEnv(String),
 }
 
 // ---------------------------------------------------------------------------
@@ -458,7 +460,24 @@ pub fn build_invocation(
         return managed_claude_invocation(&config.claude, settings, session, minted_uuid, prompt);
     }
     if harness_name == "codex" {
-        return codex::managed_codex_invocation(settings, session, minted_uuid, prompt);
+        if let Some(key) = config
+            .codex
+            .env
+            .keys()
+            .find(|key| key.starts_with("BOARD_"))
+        {
+            return Err(HarnessError::CodexReservedEnv(key.clone()));
+        }
+        let mut invocation =
+            codex::managed_codex_invocation(settings, session, minted_uuid, prompt)?;
+        invocation.env.extend(
+            config
+                .codex
+                .env
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
+        return Ok(invocation);
     }
     if harness_name == "opencode" {
         return opencode::managed_opencode_invocation(settings, session, minted_uuid, prompt);

@@ -452,6 +452,50 @@ fn enqueue_snapshot_spec_rebuilds_after_authoritative_card_changes() {
 }
 
 #[tokio::test]
+async fn codex_configured_env_reaches_the_managed_pane_with_board_identity() {
+    let config = Config::from_toml(
+        r#"
+[claude.env]
+KT_TEAM = "claude-team"
+CLAUDE_ONLY = "private"
+
+[codex.env]
+KT_AGENT = "card-${BOARD_CARD_ID}"
+KT_TEAM = "codex-team"
+"#,
+    )
+    .unwrap();
+    let spawner = Arc::new(CapturingSpawner::default());
+    let (d, _, _) = test_daemon_with_config(spawner.clone(), config);
+    let card = d
+        .store
+        .lock()
+        .create_card(&CardCreateParams {
+            title: "Codex environment".into(),
+            harness: Some("codex".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    let run = enqueue_run(&d, card.id, card.column_id, false).unwrap();
+
+    dispatch_pass(&d).await;
+
+    let requests = spawner.requests.lock().unwrap();
+    assert_eq!(requests.len(), 1);
+    let request = &requests[0];
+    assert_eq!(request.agent_kind.as_deref(), Some("codex"));
+    let env: std::collections::BTreeMap<_, _> = request.env.iter().cloned().collect();
+    assert_eq!(
+        env.get("KT_AGENT").map(String::as_str),
+        Some("card-${BOARD_CARD_ID}")
+    );
+    assert_eq!(env.get("KT_TEAM").map(String::as_str), Some("codex-team"));
+    assert_eq!(env.get("BOARD_CARD_ID"), Some(&card.id.to_string()));
+    assert_eq!(env.get("BOARD_RUN_ID"), Some(&run.id.to_string()));
+    assert!(!env.contains_key("CLAUDE_ONLY"));
+}
+
+#[tokio::test]
 async fn queued_managed_pi_uses_enqueue_time_system_snapshot() {
     let spawner = Arc::new(CapturingSpawner::default());
     let d = test_daemon(spawner.clone());
