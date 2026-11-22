@@ -59,6 +59,39 @@ fn codex_settings() -> EffectiveSettings {
 }
 
 #[test]
+fn codex_no_daemon_is_a_global_flag_before_session_arguments() {
+    let config = Config::from_toml(
+        r#"
+[codex]
+no_daemon = true
+
+[codex.env]
+KT_AGENT = "card-${BOARD_CARD_ID}"
+"#,
+    )
+    .unwrap();
+    for (session, suffix) in [
+        (SessionPlan::Mint, Vec::new()),
+        (
+            SessionPlan::Resume("thread".into()),
+            vec!["resume", "thread"],
+        ),
+        (SessionPlan::Fork("thread".into()), vec!["fork", "thread"]),
+    ] {
+        let invocation =
+            build_invocation("codex", &config, &codex_settings(), &session, None, "task").unwrap();
+        assert_eq!(&invocation.argv[..2], ["codex", "--no-daemon"]);
+        assert!(invocation
+            .argv
+            .ends_with(&suffix.into_iter().map(String::from).collect::<Vec<_>>()));
+        assert_eq!(
+            invocation.env,
+            [("KT_AGENT".into(), "card-${BOARD_CARD_ID}".into())]
+        );
+    }
+}
+
+#[test]
 fn codex_env_rejects_daemon_owned_keys() {
     let config = Config::from_toml("[codex.env]\nBOARD_RUN_ID = '7'").unwrap();
     let error = build_invocation(

@@ -3,7 +3,7 @@
 # provider-free through e2e/fake-bin/codex.
 #
 # Contract exercised end to end against a real Herdr:
-#   1. Mint: `codex [--model M] [-c model_reasoning_effort=E] [approval
+#   1. Mint: `codex --no-daemon [--model M] [-c model_reasoning_effort=E] [approval
 #      preset]` — no session flag (codex mints its own thread
 #      id), no prompt text in argv, no system-prompt file; the daemon captures
 #      the integration-reported thread id from `agent.get.agent_session` and
@@ -36,7 +36,15 @@ e2e_enable_fake_pi
 # inherits the SERVER's env (never the workspace env), so the knob must be
 # exported before e2e_boot boots the ephemeral server.
 export FAKE_PI_LOOP=1
-e2e_boot   # e2e_init + e2e_build + e2e_isolate + e2e_daemon_start (in that order)
+e2e_init
+e2e_build
+e2e_isolate
+cat >> "$HERDR_BOARD_CONFIG" <<'TOML'
+
+[codex]
+no_daemon = true
+TOML
+e2e_daemon_start
 
 # The board protocol trailer (the column has no custom system_prompt, so this
 # is the exact `system_prompt_snapshot` the daemon persisted).
@@ -121,7 +129,7 @@ assert x["model"] == "c31/codex-model" and x["effort"] == "low" and x["permissio
 assert x["system_prompt_file"] is None and x["startup_argv_has_no_prompt"] is True
 # The ask-for-approval preset maps to the explicit workspace-write sandbox
 # plus the on-request policy pair.
-expected_argv = ["--model", "c31/codex-model", "-c", "model_reasoning_effort=low",
+expected_argv = ["--no-daemon", "--model", "c31/codex-model", "-c", "model_reasoning_effort=low",
                  "--sandbox", "workspace-write", "--ask-for-approval", "on-request"]
 assert x["argv"] == expected_argv, f"mint argv {x['argv']} != {expected_argv}"
 assert not any("codex mint task" in arg for arg in x["argv"])
@@ -201,6 +209,7 @@ show = json.load(open(show_path, encoding="utf-8"))
 assert str(x["card_id"]) == card and x["run_id"] == int(run)
 assert x["mode"] == "fork" and x["fork_id"] == source and x["resume_id"] is None
 # The fork is a fresh launch whose argv closes with the `fork <id>` subcommand.
+assert x["argv"][0] == "--no-daemon"
 assert x["argv"][-2:] == ["fork", source], f"fork argv tail {x['argv'][-2:]} != ['fork', {source}]"
 # The fork minted a NEW thread, which the capture persisted over the source id.
 assert x["thread_id"] == thread and x["agent_session_id"] == thread
@@ -366,6 +375,7 @@ import json, sys
 path, thread, run_id, card_id, protocol = sys.argv[1:]
 record = json.load(open(path, encoding="utf-8"))
 # Resume: `codex resume <id>` closes the argv with the recorded thread.
+assert record["argv"][0] == "--no-daemon"
 assert record["mode"] == "resume" and record["resume_id"] == thread
 assert record["argv"][-2:] == ["resume", thread]
 assert record["thread_id"] == thread and record["fork_id"] is None

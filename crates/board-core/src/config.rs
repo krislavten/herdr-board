@@ -127,11 +127,14 @@ pub struct CodexConfig {
     /// Extra environment for Codex runs. The daemon reserves `BOARD_*` keys.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub env: BTreeMap<String, String>,
+    /// Keep execution in the pane's Codex process by passing `--no-daemon`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub no_daemon: bool,
 }
 
 impl CodexConfig {
     fn is_default(&self) -> bool {
-        self.env.is_empty()
+        self == &Self::default()
     }
 }
 
