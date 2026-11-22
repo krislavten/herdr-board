@@ -116,6 +116,23 @@ pub struct Config {
     /// which keeps the launch identical to a config without the table.
     #[serde(default, skip_serializing_if = "ClaudeConfig::is_default")]
     pub claude: ClaudeConfig,
+    /// Launch options for the built-in `codex` harness (`[codex]`).
+    #[serde(default, skip_serializing_if = "CodexConfig::is_default")]
+    pub codex: CodexConfig,
+}
+
+/// `[codex]`: how the built-in `codex` harness is launched.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodexConfig {
+    /// Extra environment for Codex runs. The daemon reserves `BOARD_*` keys.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+}
+
+impl CodexConfig {
+    fn is_default(&self) -> bool {
+        self.env.is_empty()
+    }
 }
 
 /// `[claude]`: how the built-in `claude` harness is launched.
@@ -191,6 +208,7 @@ impl Default for Config {
             agy_bin: None,
             agy_models: None,
             claude: ClaudeConfig::default(),
+            codex: CodexConfig::default(),
         }
     }
 }

@@ -58,6 +58,22 @@ fn codex_settings() -> EffectiveSettings {
     }
 }
 
+#[test]
+fn codex_env_rejects_daemon_owned_keys() {
+    let config = Config::from_toml("[codex.env]\nBOARD_RUN_ID = '7'").unwrap();
+    let error = build_invocation(
+        "codex",
+        &config,
+        &codex_settings(),
+        &SessionPlan::Mint,
+        None,
+        "task",
+    )
+    .unwrap_err();
+
+    assert_eq!(error, HarnessError::CodexReservedEnv("BOARD_RUN_ID".into()));
+}
+
 // ---------------------------------------------------------------------------
 // C3 — session policy: Mint has no synthetic id; Resume/Fork use the real id
 // ---------------------------------------------------------------------------
