@@ -54,10 +54,19 @@ it reserves `BOARD_*` keys for the daemon and passes values through literally. A
 its own templates. For example, `kt` expands `${BOARD_CARD_ID}` when it resolves the caller:
 
 ```toml
+[codex]
+no_daemon = true
+
 [codex.env]
 KT_AGENT = "card-${BOARD_CARD_ID}"
-KT_TEAM = "pilot"
 ```
+
+Use `no_daemon = true` with a Codex CLI that supports `--no-daemon`. A TUI that
+connects to the shared Codex app-server may run tool commands with the server's
+environment. This setting keeps tool execution local to the Codex process
+started in the card pane, so the tool shell can access the card's environment.
+It defaults to false for compatibility with older Codex CLIs.
+The example leaves KT team selection to the local KT setup.
 
 The permission selector mirrors Codex's three presets and stores stable ids:
 

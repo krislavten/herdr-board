@@ -470,6 +470,9 @@ pub fn build_invocation(
         }
         let mut invocation =
             codex::managed_codex_invocation(settings, session, minted_uuid, prompt)?;
+        if config.codex.no_daemon {
+            invocation.argv.insert(1, "--no-daemon".to_string());
+        }
         invocation.env.extend(
             config
                 .codex

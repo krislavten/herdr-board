@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- [#1](https://github.com/krislavten/herdr-board/pull/1) Configure environment variables for Codex cards and make them available to the card's tool shell.
+
 ## [0.17.0] - 2026-09-13
 
 ### Added

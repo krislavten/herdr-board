@@ -24,9 +24,11 @@ INSTALL_REF_DOCS = ("README.md", "docs/install.md", "docs/operations.md")
 
 # Changelog convention, enforced for the `Unreleased` section only. Released
 # sections document the conventions of their time and are never rewritten.
+# This fork also records its own PRs. Check both repository paths and require
+# the displayed PR number to match the target.
 CHANGELOG_CATEGORIES = ("### Added", "### Changed", "### Fixed", "### Removed")
 CHANGELOG_ENTRY_RE = re.compile(
-    r"^\- \[#(\d+)\]\(https://github\.com/nelsonPires5/herdr-board/pull/\d+\)"
+    r"^\- \[#(\d+)\]\(https://github\.com/(?:nelsonPires5|krislavten)/herdr-board/pull/\1\)"
 )
 CHANGELOG_ENTRY_MAX_CHARS = 200
 
@@ -359,8 +361,8 @@ class DocumentationContractTests(unittest.TestCase):
                 )
                 self.assertIsNotNone(
                     CHANGELOG_ENTRY_RE.match(stripped),
-                    "entry must start with `- [#NN](https://github.com/"
-                    "nelsonPires5/herdr-board/pull/NN)`: " + stripped[:60],
+                    "entry must start with a matching PR link to the upstream or fork "
+                    "herdr-board repository: " + stripped[:60],
                 )
                 self.assertLessEqual(
                     len(stripped),

@@ -56,6 +56,9 @@ model=""; effort=""; permission=""; sandbox=""
 sub=""; sub_id=""
 while (($#)); do
   case "$1" in
+    --no-daemon)
+      [ "$#" = "${#argv[@]}" ] || { echo 'fake codex: --no-daemon must come first' >&2; exit 2; }
+      shift ;;
     --model|-m)
       (($# >= 2)) || { echo 'fake codex: --model missing value' >&2; exit 2; }
       [ -z "$model" ] || { echo 'fake codex: duplicate --model' >&2; exit 2; }
