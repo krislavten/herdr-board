@@ -452,18 +452,34 @@ fn enqueue_snapshot_spec_rebuilds_after_authoritative_card_changes() {
 }
 
 #[tokio::test]
-async fn codex_configured_env_reaches_the_managed_pane_with_board_identity() {
-    let config = Config::from_toml(
+async fn codex_configured_env_registers_kt_and_reaches_the_managed_pane() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = tempfile::tempdir().unwrap();
+    let kt = fixture.path().join("kt");
+    std::fs::write(
+        &kt,
+        r#"#!/bin/sh
+printf '%s\n' "$*" "$KT_AGENT" "$KT_TEAM" "$BOARD_CARD_ID" "$BOARD_RUN_ID" > "$KT_HOME/receipt"
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&kt, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+    let config = Config::from_toml(&format!(
         r#"
 [claude.env]
 KT_TEAM = "claude-team"
 CLAUDE_ONLY = "private"
 
 [codex.env]
-KT_AGENT = "card-${BOARD_CARD_ID}"
+KT_AGENT = "card-${{BOARD_CARD_ID}}"
 KT_TEAM = "codex-team"
+KT_HOME = {path:?}
+PATH = {path:?}
 "#,
-    )
+        path = fixture.path(),
+    ))
     .unwrap();
     let spawner = Arc::new(CapturingSpawner::default());
     let (d, _, _) = test_daemon_with_config(spawner.clone(), config);
@@ -480,6 +496,13 @@ KT_TEAM = "codex-team"
 
     dispatch_pass(&d).await;
 
+    assert_eq!(
+        std::fs::read_to_string(fixture.path().join("receipt")).unwrap(),
+        format!(
+            "whoami --register\ncard-${{BOARD_CARD_ID}}\ncodex-team\n{}\n{}\n",
+            card.id, run.id
+        )
+    );
     let requests = spawner.requests.lock().unwrap();
     assert_eq!(requests.len(), 1);
     let request = &requests[0];

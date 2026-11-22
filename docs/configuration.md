@@ -67,6 +67,10 @@ environment. This setting keeps tool execution local to the Codex process
 started in the card pane, so the tool shell can access the card's environment.
 It defaults to false for compatibility with older Codex CLIs.
 The example leaves KT team selection to the local KT setup.
+When `KT_AGENT` is configured, boardd runs `kt whoami --register` before
+dispatching the Codex card. Make `kt` available on boardd's PATH or the
+configured Codex PATH. Explicit `KT_TEAM` and `KT_HOME` use the same values
+as the card. Boardd logs a warning and continues dispatch if KT is unavailable.
 
 The permission selector mirrors Codex's three presets and stores stable ids:
 

@@ -3,9 +3,11 @@
 //! is durably promoted" lives here.
 
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use anyhow::Context;
 use board_core::capability::{run_pane_name, run_pane_name_unique};
 use board_core::db::FinalizeRun;
 use board_core::harness::is_builtin_harness;
@@ -44,6 +46,56 @@ pub(crate) fn board_env(
         std::env::current_exe()?.to_string_lossy().into_owned(),
     ));
     Ok(env)
+}
+
+/// Register before dispatch so a Codex card can use KT on its first turn.
+/// Leave team and store selection to KT, with the same explicit overrides as
+/// the card. A missing or broken optional KT installation must not stop board.
+async fn register_codex_kt(req: &HerdrLaunchPlan) {
+    if req.agent_kind.as_deref() != Some("codex")
+        || !req
+            .env
+            .iter()
+            .any(|(key, value)| key == "KT_AGENT" && !value.is_empty())
+    {
+        return;
+    }
+
+    let env_keys = [
+        "KT_AGENT",
+        "KT_TEAM",
+        "KT_HOME",
+        "BOARD_CARD_ID",
+        "BOARD_RUN_ID",
+        "PATH",
+    ];
+    let env = req
+        .env
+        .iter()
+        .filter(|(key, _)| env_keys.contains(&key.as_str()))
+        .map(|(key, value)| (key, value));
+    let mut command = tokio::process::Command::new("kt");
+    command
+        .args(["whoami", "--register"])
+        .envs(env)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    if let Some(cwd) = &req.cwd {
+        command.current_dir(cwd);
+    }
+    let result = tokio::time::timeout(Duration::from_secs(3), command.status())
+        .await
+        .context("KT registration timed out")
+        .and_then(|status| status.context("could not run kt"))
+        .and_then(|status| {
+            anyhow::ensure!(status.success(), "kt exited with {status}");
+            Ok(())
+        });
+    if let Err(error) = result {
+        tracing::warn!(%error, "KT registration failed; continuing Codex launch");
+    }
 }
 
 /// Promote one queued run to running. Returns `Ok(true)` if it started,
@@ -301,6 +353,7 @@ pub(super) async fn spawn_one(d: &Arc<Daemon>, run: &Run, card: &Card) -> Result
         }
     }
 
+    register_codex_kt(&req).await;
     let spawner = d.spawner.clone();
     let req2 = req.clone();
     let spawn_res = tokio::task::spawn_blocking(move || spawner.spawn(&req2)).await;
